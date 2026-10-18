@@ -1,0 +1,48 @@
+import { auth, signOut } from "@/auth";
+import { database } from "@/lib/db";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
+export default async function DashboardPage() {
+  const session = await auth();
+  if (!session?.user?.email) redirect("/");
+
+  const sql = database();
+  const rows = await sql`
+    SELECT status FROM membership_requests
+    WHERE LOWER(email) = LOWER(${session.user.email})
+    LIMIT 1
+  `;
+
+  const status = rows[0]?.status || "PENDING";
+
+  return (
+    <main>
+      <section className="card">
+        <div className="tag">DASHBOARD</div>
+        <h1>حالة طلب العضوية</h1>
+        <p>أهلاً بك يا {session.user.name || "عضو المسار"}</p>
+        <p className="status">الحالة الحالية: {status}</p>
+
+        {session.user.email.toLowerCase() === process.env.OWNER_EMAIL?.toLowerCase() && (
+          <div style={{ margin: "16px 0" }}>
+            <Link className="button primary" href="/admin">
+              الانتقال للوحة التحكم (/admin)
+            </Link>
+          </div>
+        )}
+
+        <form
+          action={async () => {
+            "use server";
+            await signOut({ redirectTo: "/" });
+          }}
+        >
+          <button className="button" type="submit">
+            تسجيل الخروج
+          </button>
+        </form>
+      </section>
+    </main>
+  );
+}
